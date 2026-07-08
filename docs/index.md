@@ -16,10 +16,19 @@ The Commvault Terraform provider provides a set of named resource types, and spe
 ```
 provider "commvault" {
 	web_service_url = "URL of the commserver webservice/webconsole api endpoint"
-	user_name = "username that is used to call APIs" 
+	user_name = "username that is used to call APIs"
 	password = "password in base 64 encoded format"
 	api_token = "access token to be used"
-    ignore_cert = "true/false to ignore certificate warnings for https endpoints"
+	refresh_token = "refresh token used to renew api_token"
+
+	# Optional Azure Key Vault settings
+	key_vault_name = "azure-key-vault-name"
+	key_vault_user_name_secret_name = "secret-name-for-user-name"
+	key_vault_password_secret_name = "secret-name-for-password"
+	key_vault_api_token_secret_name = "secret-name-for-api-token"
+	key_vault_refresh_token_secret_name = "secret-name-for-refresh-token"
+
+	ignore_cert = "true/false to ignore certificate warnings for https endpoints"
 }
 ```
 ## Example Usage
@@ -27,9 +36,57 @@ provider "commvault" {
 ```
 provider "commvault" {
 	web_service_url = "https://webconsole.domain.com/webconsole/api"
-	user_name       = "your-admin-username" 
+	user_name       = "your-admin-username"
 	password = "QnVebFRgciEoMg=="
+	ignore_cert = true
+}
 ```
+
+## Azure Key Vault Usage
+
+Use Azure Key Vault when you do not want to place credentials directly in Terraform files.
+
+### Prerequisites
+
+- Install Azure CLI on the machine where Terraform runs.
+- Run `az login` before `terraform plan` or `terraform apply`.
+- Ensure the Azure identity has Key Vault secret `get` permission.
+
+### Provider Configuration with Key Vault
+
+```
+provider "commvault" {
+	web_service_url = "https://webconsole.domain.com/webconsole/api"
+
+	# Optional inline values. If empty, provider reads from Key Vault.
+	user_name = ""
+	password = ""
+	api_token = ""
+	refresh_token = ""
+
+	key_vault_name = "my-kv"
+	key_vault_user_name_secret_name = "commvault-user"
+	key_vault_password_secret_name = "commvault-password"
+	key_vault_api_token_secret_name = "commvault-api-token"
+	key_vault_refresh_token_secret_name = "commvault-refresh-token"
+
+	ignore_cert = true
+}
+```
+
+### Credential Precedence
+
+For each field (`user_name`, `password`, `api_token`, `refresh_token`):
+
+1. Use inline provider value when non-empty.
+2. Use Azure Key Vault secret when inline value is empty.
+
+### Refresh Token Notes
+
+- `refresh_token` is optional, but recommended when using `api_token`.
+- If `api_token` is expired, provider attempts renewal using `refresh_token`.
+- Store both token values in Key Vault for best operational stability.
+- If renewal fails with "Renew request placed after the permissible time limit", generate a new token pair and update the Key Vault secrets.
 
 ### Required
 
@@ -39,7 +96,13 @@ provider "commvault" {
 
 - `password` (String) Specifies the Password for the user name to authentication to Web Server. Alternatively set CV_TER_PASSWORD environment variable for terraform to pick it.
 - `user_name` (String) Specifies the User name used for authentication to Web Server.
-- `api_token` (String) Specifies the access token for the user. Alternatively set CV_TER_TOKEN environment variable for terraform to pick it. 
+- `api_token` (String) Specifies the access token for the user. Alternatively set CV_TER_TOKEN environment variable for terraform to pick it.
+- `refresh_token` (String) Specifies refresh token used to renew access token.
+- `key_vault_name` (String) Azure Key Vault name for secret lookup.
+- `key_vault_user_name_secret_name` (String) Key Vault secret name for `user_name`.
+- `key_vault_password_secret_name` (String) Key Vault secret name for `password`.
+- `key_vault_api_token_secret_name` (String) Key Vault secret name for `api_token`.
+- `key_vault_refresh_token_secret_name` (String) Key Vault secret name for `refresh_token`.
 - `ignore_cert` (Bool) true/false to ignore certificate warnings for https endpoints.
 
 

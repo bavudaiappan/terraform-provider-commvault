@@ -1,6 +1,7 @@
 package commvault
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -21,13 +22,14 @@ func Provider() *schema.Provider {
 			},
 			"user_name": {
 				Type:        schema.TypeString,
-				Required:    true,
+				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("CV_USERNAME", os.Getenv("CV_USERNAME")),
 				Description: "Specifies the User name used for authentication to Web Server",
 			},
 			"password": {
 				Type:        schema.TypeString,
-				Required:    true,
+				Optional:    true,
+				Sensitive:   true,
 				DefaultFunc: schema.EnvDefaultFunc("CV_PASSWORD", os.Getenv("CV_PASSWORD")),
 				Description: "Specifies the Password for the user name to authentication to Web Server.",
 			},
@@ -48,6 +50,36 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				Sensitive:   true,
 				Description: "Optional recovery refresh token used only when api_token bootstrap fails with 401 and no valid cached token is available.",
+			},
+			"key_vault_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("CV_KEY_VAULT_NAME", os.Getenv("CV_KEY_VAULT_NAME")),
+				Description: "Optional Azure Key Vault name used to resolve missing credentials and tokens.",
+			},
+			"key_vault_user_name_secret_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("CV_KEY_VAULT_USER_NAME_SECRET", os.Getenv("CV_KEY_VAULT_USER_NAME_SECRET")),
+				Description: "Optional Azure Key Vault secret name for user_name.",
+			},
+			"key_vault_password_secret_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("CV_KEY_VAULT_PASSWORD_SECRET", os.Getenv("CV_KEY_VAULT_PASSWORD_SECRET")),
+				Description: "Optional Azure Key Vault secret name for password.",
+			},
+			"key_vault_api_token_secret_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("CV_KEY_VAULT_API_TOKEN_SECRET", os.Getenv("CV_KEY_VAULT_API_TOKEN_SECRET")),
+				Description: "Optional Azure Key Vault secret name for api_token.",
+			},
+			"key_vault_refresh_token_secret_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("CV_KEY_VAULT_REFRESH_TOKEN_SECRET", os.Getenv("CV_KEY_VAULT_REFRESH_TOKEN_SECRET")),
+				Description: "Optional Azure Key Vault secret name for refresh_token.",
 			},
 			"logging": {
 				Type:        schema.TypeBool,
@@ -150,14 +182,52 @@ func providerConfigure(data *schema.ResourceData) (i interface{}, err error) {
 	password := data.Get("password").(string)
 	api_token := data.Get("api_token").(string)
 	refresh_token := data.Get("refresh_token").(string)
+	keyVaultName := data.Get("key_vault_name").(string)
+	keyVaultUsernameSecretName := data.Get("key_vault_user_name_secret_name").(string)
+	keyVaultPasswordSecretName := data.Get("key_vault_password_secret_name").(string)
+	keyVaultAPITokenSecretName := data.Get("key_vault_api_token_secret_name").(string)
+	keyVaultRefreshTokenSecretName := data.Get("key_vault_refresh_token_secret_name").(string)
 	logging := data.Get("logging").(bool)
 	ignore_cert := data.Get("ignore_cert").(bool)
 
+	// Set Key Vault env vars first so FetchAzureKeyVaultSecret can use them below.
 	os.Setenv("CV_CSIP", cvUrl)
-	os.Setenv("CV_USERNAME", username)
-	os.Setenv("CV_PASSWORD", password)
 	os.Setenv("CV_LOGGING", strconv.FormatBool(logging))
 	os.Setenv("IGNORE_CERT", strconv.FormatBool(ignore_cert))
+	os.Setenv("CV_KEY_VAULT_NAME", keyVaultName)
+	os.Setenv("CV_KEY_VAULT_USER_NAME_SECRET", keyVaultUsernameSecretName)
+	os.Setenv("CV_KEY_VAULT_PASSWORD_SECRET", keyVaultPasswordSecretName)
+	os.Setenv("CV_KEY_VAULT_API_TOKEN_SECRET", keyVaultAPITokenSecretName)
+	os.Setenv("CV_KEY_VAULT_REFRESH_TOKEN_SECRET", keyVaultRefreshTokenSecretName)
+
+	// Resolve credentials from Key Vault when inline values are empty.
+	if username == "" && keyVaultUsernameSecretName != "" {
+		if kvVal, kvErr := handler.FetchAzureKeyVaultSecret(keyVaultUsernameSecretName); kvErr == nil && kvVal != "" {
+			username = kvVal
+		}
+	}
+	if password == "" && keyVaultPasswordSecretName != "" {
+		if kvVal, kvErr := handler.FetchAzureKeyVaultSecret(keyVaultPasswordSecretName); kvErr == nil && kvVal != "" {
+			password = kvVal
+		}
+	}
+	if api_token == "" && keyVaultAPITokenSecretName != "" {
+		if kvVal, kvErr := handler.FetchAzureKeyVaultSecret(keyVaultAPITokenSecretName); kvErr == nil && kvVal != "" {
+			api_token = kvVal
+		}
+	}
+	if refresh_token == "" && keyVaultRefreshTokenSecretName != "" {
+		if kvVal, kvErr := handler.FetchAzureKeyVaultSecret(keyVaultRefreshTokenSecretName); kvErr == nil && kvVal != "" {
+			refresh_token = kvVal
+		}
+	}
+
+	os.Setenv("CV_USERNAME", username)
+	os.Setenv("CV_PASSWORD", password)
+
+	if api_token == "" && os.Getenv("CV_TER_TOKEN") == "" && os.Getenv("CV_TER_PASSWORD") == "" && (username == "" || password == "") {
+		return nil, fmt.Errorf("authentication requires either api_token or both user_name and password")
+	}
 
 	if api_token != "" {
 		os.Setenv("CV_BOOTSTRAP_TOKEN", api_token)
@@ -170,13 +240,30 @@ func providerConfigure(data *schema.ResourceData) (i interface{}, err error) {
 		} else {
 			// Step 2: Cache miss - bootstrap new token pair from api_token
 			if tokenErr := handler.CreateAccessTokenWithBootstrapToken(api_token); tokenErr != nil {
-				// Bootstrap failed - try refresh token recovery if available
-				if refresh_token != "" && strings.Contains(tokenErr.Error(), "401") {
-					if renewErr := handler.TryRenewWithExpiredTokenAndRefresh(api_token, refresh_token); renewErr != nil {
-						return nil, renewErr
+				if strings.Contains(tokenErr.Error(), "Access token creation not allowed using another access token") {
+					// The supplied api_token is already an access token; use it directly.
+					os.Setenv("AuthToken", api_token)
+					if refresh_token != "" {
+						os.Setenv("CV_REFRESH_TOKEN", refresh_token)
 					}
 				} else {
-					return nil, tokenErr
+				// Bootstrap failed - try refresh token recovery if available.
+				// If refresh token is not provided inline, lazily fetch it from Key Vault only on 401.
+					if strings.Contains(tokenErr.Error(), "401") {
+						if refresh_token == "" {
+							if kvRefreshToken, kvErr := handler.TryLoadRefreshTokenFromKeyVault(); kvErr == nil && kvRefreshToken != "" {
+								refresh_token = kvRefreshToken
+							}
+						}
+					}
+
+					if refresh_token != "" && strings.Contains(tokenErr.Error(), "401") {
+						if renewErr := handler.TryRenewWithExpiredTokenAndRefresh(api_token, refresh_token); renewErr != nil {
+							return nil, renewErr
+						}
+					} else {
+						return nil, tokenErr
+					}
 				}
 			}
 		}

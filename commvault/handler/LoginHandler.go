@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -331,8 +332,57 @@ func setRuntimeTokens(accessToken string, refreshToken string) {
 	}
 }
 
+func FetchAzureKeyVaultSecret(secretName string) (string, error) {
+	vaultName := strings.TrimSpace(os.Getenv("CV_KEY_VAULT_NAME"))
+	secretName = strings.TrimSpace(secretName)
+	if vaultName == "" || secretName == "" {
+		return "", nil
+	}
+
+	cmd := exec.Command("az", "keyvault", "secret", "show", "--vault-name", vaultName, "--name", secretName, "--query", "value", "-o", "tsv")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		msg := strings.TrimSpace(string(out))
+		if msg != "" {
+			return "", fmt.Errorf("failed to read secret %s from key vault %s: %w: %s", secretName, vaultName, err, msg)
+		}
+		return "", fmt.Errorf("failed to read secret %s from key vault %s: %w", secretName, vaultName, err)
+	}
+
+	return normalizeAuthToken(strings.TrimSpace(string(out))), nil
+}
+
+func TryLoadRefreshTokenFromKeyVault() (string, error) {
+	secretName := os.Getenv("CV_KEY_VAULT_REFRESH_TOKEN_SECRET")
+	refreshToken, err := FetchAzureKeyVaultSecret(secretName)
+	if err != nil {
+		return "", err
+	}
+	if refreshToken != "" {
+		os.Setenv("CV_REFRESH_TOKEN", refreshToken)
+	}
+	return refreshToken, nil
+}
+
+func tryLoadBootstrapTokenFromKeyVault() (string, error) {
+	secretName := os.Getenv("CV_KEY_VAULT_API_TOKEN_SECRET")
+	bootstrapToken, err := FetchAzureKeyVaultSecret(secretName)
+	if err != nil {
+		return "", err
+	}
+	if bootstrapToken != "" {
+		os.Setenv("CV_BOOTSTRAP_TOKEN", bootstrapToken)
+	}
+	return bootstrapToken, nil
+}
+
 func fallbackBootstrapOnRenewFailure() error {
 	bootstrapToken := normalizeAuthToken(os.Getenv("CV_BOOTSTRAP_TOKEN"))
+	if bootstrapToken == "" {
+		if kvBootstrapToken, kvErr := tryLoadBootstrapTokenFromKeyVault(); kvErr == nil && kvBootstrapToken != "" {
+			bootstrapToken = kvBootstrapToken
+		}
+	}
 	if bootstrapToken == "" {
 		return fmt.Errorf("bootstrap token is empty")
 	}
@@ -387,15 +437,15 @@ func TryRenewWithExpiredTokenAndRefresh(expiredToken string, refreshToken string
 	url := buildV4TokenURL("/AccessToken/Renew")
 	respBody, err := execHttpRequestErr(url, http.MethodPost, JSON, reqBody, JSON, expiredToken, 0)
 	if err != nil {
-		return fmt.Errorf("renew with expired token failed: %w", err)
+		return fmt.Errorf("renew with token failed: %w", err)
 	}
 
 	var resp AccessTokenRenewResp
 	if jsonErr := json.Unmarshal(respBody, &resp); jsonErr != nil {
-		return fmt.Errorf("renew with expired token parse failed: %w", jsonErr)
+		return fmt.Errorf("renew with token parse failed: %w", jsonErr)
 	}
 	if resp.AccessToken == "" || resp.RefreshToken == "" {
-		return fmt.Errorf("renew with expired token returned empty access or refresh token")
+		return fmt.Errorf("renew with token returned empty access or refresh token")
 	}
 
 	setRuntimeTokens(resp.AccessToken, resp.RefreshToken)
@@ -417,6 +467,11 @@ func RenewAccessToken(expiredAccessToken string) error {
 
 	refreshToken := normalizeAuthToken(os.Getenv("CV_REFRESH_TOKEN"))
 	if refreshToken == "" {
+		if kvRefreshToken, kvErr := TryLoadRefreshTokenFromKeyVault(); kvErr == nil && kvRefreshToken != "" {
+			refreshToken = kvRefreshToken
+		}
+	}
+	if refreshToken == "" {
 		if fallbackErr := fallbackBootstrapOnRenewFailure(); fallbackErr == nil {
 			return nil
 		}
@@ -436,6 +491,13 @@ func RenewAccessToken(expiredAccessToken string) error {
 
 	url := buildV4TokenURL("/AccessToken/Renew")
 	respBody, err := execHttpRequestErr(url, http.MethodPost, JSON, reqBody, JSON, accessToken, 0)
+	if err != nil {
+		if kvRefreshToken, kvErr := TryLoadRefreshTokenFromKeyVault(); kvErr == nil && kvRefreshToken != "" && kvRefreshToken != refreshToken {
+			retryReqBodyObj := AccessTokenRenewReq{AccessToken: accessToken, RefreshToken: kvRefreshToken}
+			retryReqBody, _ := json.Marshal(&retryReqBodyObj)
+			respBody, err = execHttpRequestErr(url, http.MethodPost, JSON, retryReqBody, JSON, accessToken, 0)
+		}
+	}
 	if err != nil {
 		if fallbackErr := fallbackBootstrapOnRenewFailure(); fallbackErr == nil {
 			return nil
