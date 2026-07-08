@@ -231,39 +231,30 @@ func providerConfigure(data *schema.ResourceData) (i interface{}, err error) {
 
 	if api_token != "" {
 		os.Setenv("CV_BOOTSTRAP_TOKEN", api_token)
-		// Token-based auth: try cache first, then bootstrap
+		if tokenErr := handler.CreateAccessTokenWithBootstrapToken(api_token); tokenErr != nil {
+			if strings.Contains(tokenErr.Error(), "Access token creation not allowed using another access token") {
+				// The supplied api_token is already an access token; use it directly.
+				os.Setenv("AuthToken", api_token)
+				if refresh_token != "" {
+					os.Setenv("CV_REFRESH_TOKEN", refresh_token)
+				}
+			} else {
+			// Bootstrap failed - try refresh token recovery if available.
+			// If refresh token is not provided inline, lazily fetch it from Key Vault only on 401.
+				if strings.Contains(tokenErr.Error(), "401") {
+					if refresh_token == "" {
+						if kvRefreshToken, kvErr := handler.TryLoadRefreshTokenFromKeyVault(); kvErr == nil && kvRefreshToken != "" {
+							refresh_token = kvRefreshToken
+						}
+					}
+				}
 
-		// Step 1: Try to load cached tokens if available
-		if cached, _ := handler.TryUseCachedTokens(); cached {
-			// Cache hit - proceed with cached tokens.
-			// Do not overwrite cached refresh token with user input.
-		} else {
-			// Step 2: Cache miss - bootstrap new token pair from api_token
-			if tokenErr := handler.CreateAccessTokenWithBootstrapToken(api_token); tokenErr != nil {
-				if strings.Contains(tokenErr.Error(), "Access token creation not allowed using another access token") {
-					// The supplied api_token is already an access token; use it directly.
-					os.Setenv("AuthToken", api_token)
-					if refresh_token != "" {
-						os.Setenv("CV_REFRESH_TOKEN", refresh_token)
+				if refresh_token != "" && strings.Contains(tokenErr.Error(), "401") {
+					if renewErr := handler.TryRenewWithExpiredTokenAndRefresh(api_token, refresh_token); renewErr != nil {
+						return nil, renewErr
 					}
 				} else {
-				// Bootstrap failed - try refresh token recovery if available.
-				// If refresh token is not provided inline, lazily fetch it from Key Vault only on 401.
-					if strings.Contains(tokenErr.Error(), "401") {
-						if refresh_token == "" {
-							if kvRefreshToken, kvErr := handler.TryLoadRefreshTokenFromKeyVault(); kvErr == nil && kvRefreshToken != "" {
-								refresh_token = kvRefreshToken
-							}
-						}
-					}
-
-					if refresh_token != "" && strings.Contains(tokenErr.Error(), "401") {
-						if renewErr := handler.TryRenewWithExpiredTokenAndRefresh(api_token, refresh_token); renewErr != nil {
-							return nil, renewErr
-						}
-					} else {
-						return nil, tokenErr
-					}
+					return nil, tokenErr
 				}
 			}
 		}

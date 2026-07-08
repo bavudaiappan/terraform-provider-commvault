@@ -1,38 +1,18 @@
 package handler
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 )
 
 var tokenRenewMutex sync.Mutex
-
-type TokenCacheEntry struct {
-	AccessToken  string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken"`
-	CreatedAt    int64  `json:"createdAt"`
-	ExpiresAt    int64  `json:"expiresAt"`
-}
-
-type EncryptedTokenCache struct {
-	Version    int    `json:"version"`
-	Nonce      string `json:"nonce"`
-	Ciphertext string `json:"ciphertext"`
-}
 
 type AccessTokenCreateReq struct {
 	TokenName               string `json:"tokenName"`
@@ -64,229 +44,6 @@ type AccessTokenRenewReq struct {
 type AccessTokenRenewResp struct {
 	AccessToken string `json:"accessToken"`
 	RefreshToken string `json:"refreshToken"`
-}
-
-// getCacheFilePath returns the path to the token cache file: ~/.commvault/tokens.json
-func getCacheFilePath() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
-	}
-	cacheDir := filepath.Join(homeDir, ".commvault")
-	return filepath.Join(cacheDir, "tokens.json"), nil
-}
-
-// ensureCacheDir creates ~/.commvault directory if it doesn't exist
-func ensureCacheDir() error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
-	}
-	cacheDir := filepath.Join(homeDir, ".commvault")
-	if err := os.MkdirAll(cacheDir, 0700); err != nil {
-		return fmt.Errorf("failed to create cache directory %s: %w", cacheDir, err)
-	}
-	return nil
-}
-
-// getCachedTokens reads and validates the token cache file.
-// Returns nil if cache doesn't exist, is invalid JSON, or tokens are expired.
-func getCachedTokens() *TokenCacheEntry {
-	cacheFile, err := getCacheFilePath()
-	if err != nil {
-		return nil
-	}
-
-	data, err := os.ReadFile(cacheFile)
-	if err != nil {
-		// File doesn't exist or can't be read - cache miss
-		return nil
-	}
-
-	cache, decrypted := decryptCachedTokens(data)
-	if !decrypted {
-		// Backward compatibility: accept legacy plaintext cache and migrate it to encrypted format.
-		if err := json.Unmarshal(data, &cache); err != nil {
-			return nil
-		}
-		_ = saveCachedTokenEntry(&cache)
-		if !isCacheValid(&cache) {
-			return nil
-		}
-		return &cache
-	}
-
-	if !isCacheValid(&cache) {
-		return nil
-	}
-
-	return &cache
-}
-
-// saveCachedTokens writes tokens to ~/.commvault/tokens.json
-// Token expiry is set to 2 hours from now (Commvault's access token lifetime)
-func saveCachedTokens(accessToken, refreshToken string) error {
-	if err := ensureCacheDir(); err != nil {
-		// Non-blocking: if cache fails, just continue without caching
-		return nil
-	}
-
-	cache := TokenCacheEntry{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		CreatedAt:    time.Now().Unix(),
-		ExpiresAt:    time.Now().Add(2 * time.Hour).Unix(), // Access tokens valid ~2 hours
-	}
-
-	return saveCachedTokenEntry(&cache)
-}
-
-func saveCachedTokenEntry(cache *TokenCacheEntry) error {
-	cacheFile, err := getCacheFilePath()
-	if err != nil {
-		return nil
-	}
-
-	data, err := encryptCachedTokens(cache)
-	if err != nil {
-		// Non-blocking: if encryption fails, continue without cache.
-		return nil
-	}
-
-	// Write with restricted permissions (user only)
-	if err := os.WriteFile(cacheFile, data, 0600); err != nil {
-		// Non-blocking: cache write failure doesn't break provider
-		return nil
-	}
-
-	return nil
-}
-
-func isCacheValid(cache *TokenCacheEntry) bool {
-	if cache == nil {
-		return false
-	}
-
-	now := time.Now().Unix()
-	if cache.ExpiresAt > 0 && now > cache.ExpiresAt-300 {
-		return false
-	}
-
-	if cache.AccessToken == "" || cache.RefreshToken == "" {
-		return false
-	}
-
-	return true
-}
-
-func cacheEncryptionKey() ([]byte, error) {
-	bootstrapToken := normalizeAuthToken(os.Getenv("CV_BOOTSTRAP_TOKEN"))
-	if bootstrapToken == "" {
-		bootstrapToken = normalizeAuthToken(os.Getenv("CV_API_TOKEN"))
-	}
-	if bootstrapToken == "" {
-		return nil, fmt.Errorf("cache encryption key unavailable")
-	}
-
-	baseURL := strings.TrimSpace(strings.TrimRight(strings.ToLower(os.Getenv("CV_CSIP")), "/"))
-	raw := "commvault-cache-v1|" + baseURL + "|" + bootstrapToken
-	sum := sha256.Sum256([]byte(raw))
-	return sum[:], nil
-}
-
-func encryptCachedTokens(cache *TokenCacheEntry) ([]byte, error) {
-	key, err := cacheEncryptionKey()
-	if err != nil {
-		return nil, err
-	}
-
-	plain, err := json.Marshal(cache)
-	if err != nil {
-		return nil, err
-	}
-
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, err
-	}
-
-	ciphertext := gcm.Seal(nil, nonce, plain, nil)
-	enc := EncryptedTokenCache{
-		Version:    1,
-		Nonce:      base64.StdEncoding.EncodeToString(nonce),
-		Ciphertext: base64.StdEncoding.EncodeToString(ciphertext),
-	}
-
-	return json.Marshal(enc)
-}
-
-func decryptCachedTokens(data []byte) (TokenCacheEntry, bool) {
-	var enc EncryptedTokenCache
-	if err := json.Unmarshal(data, &enc); err != nil {
-		return TokenCacheEntry{}, false
-	}
-	if enc.Version != 1 || enc.Nonce == "" || enc.Ciphertext == "" {
-		return TokenCacheEntry{}, false
-	}
-
-	key, err := cacheEncryptionKey()
-	if err != nil {
-		return TokenCacheEntry{}, false
-	}
-
-	nonce, err := base64.StdEncoding.DecodeString(enc.Nonce)
-	if err != nil {
-		return TokenCacheEntry{}, false
-	}
-	ciphertext, err := base64.StdEncoding.DecodeString(enc.Ciphertext)
-	if err != nil {
-		return TokenCacheEntry{}, false
-	}
-
-	block, err := aes.NewCipher(key)
-	if err != nil {
-		return TokenCacheEntry{}, false
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return TokenCacheEntry{}, false
-	}
-
-	plain, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return TokenCacheEntry{}, false
-	}
-
-	var cache TokenCacheEntry
-	if err := json.Unmarshal(plain, &cache); err != nil {
-		return TokenCacheEntry{}, false
-	}
-
-	return cache, true
-}
-
-// TryUseCachedTokens attempts to use cached tokens if they're still valid.
-// Returns (true, nil) if cache was loaded and set in environment.
-// Returns (false, nil) if cache doesn't exist or is expired.
-// Returns (false, err) if there's an error reading cache.
-func TryUseCachedTokens() (bool, error) {
-	cache := getCachedTokens()
-	if cache == nil {
-		return false, nil
-	}
-
-	// Cache is valid - load into environment
-	setRuntimeTokens(cache.AccessToken, cache.RefreshToken)
-	return true, nil
 }
 
 func createAccessTokenPair(bootstrapToken string, tokenName string) (*AccessTokenCreateResp, error) {
@@ -416,8 +173,6 @@ func CreateAccessTokenWithBootstrapToken(bootstrapToken string) error {
 	}
 
 	setRuntimeTokens(resp.TokenInfo.AccessToken, resp.TokenInfo.RefreshToken)
-	// Save to cache for next provider run (non-blocking)
-	saveCachedTokens(resp.TokenInfo.AccessToken, resp.TokenInfo.RefreshToken)
 	return nil
 }
 
@@ -449,8 +204,6 @@ func TryRenewWithExpiredTokenAndRefresh(expiredToken string, refreshToken string
 	}
 
 	setRuntimeTokens(resp.AccessToken, resp.RefreshToken)
-	// Save to cache for next provider run (non-blocking)
-	saveCachedTokens(resp.AccessToken, resp.RefreshToken)
 	return nil
 }
 
@@ -514,8 +267,6 @@ func RenewAccessToken(expiredAccessToken string) error {
 	}
 
 	setRuntimeTokens(resp.AccessToken, resp.RefreshToken)
-	// Save to cache for next provider run (non-blocking)
-	saveCachedTokens(resp.AccessToken, resp.RefreshToken)
 	return nil
 }
 
