@@ -15,7 +15,9 @@ func resourceCompany() *schema.Resource {
 		Read:   resourceCompanyRead,
 		Update: resourceCompanyUpdate,
 		Delete: resourceCompanyDelete,
-
+		// Deletion: Two-step process (deactivate → delete). Backend handles resource disassociation
+		// (plans, jobs, users, child companies) per Commvault policies. If deletion fails,
+		// check backend dependencies via Commvault GUI before retry.
 		Schema: map[string]*schema.Schema{
 			"company_name": &schema.Schema{
 				Type:        schema.TypeString,
@@ -106,14 +108,25 @@ func resourceCompanyUpdate(d *schema.ResourceData, m interface{}) error {
 }
 
 func resourceCompanyDelete(d *schema.ResourceData, m interface{}) error {
+	// Company deletion is a two-step process handled by Commvault backend:
+	// 1. Deactivate: Disables backup, restore, and login for the company
+	// 2. Delete: Removes the company from the Commcell
+	// Resource disassociation (plans, jobs, users, child companies) is performed
+	// by Commvault backend policies, not by this provider.
 	providerID := d.Id()
 	deactivateResp := handler.CompanyDeactivate(providerID)
 	if deactivateResp.Response.ErrorCode != 0 {
-		return fmt.Errorf("Error in Deactivatoin of Company")
+		return fmt.Errorf("failed to deactivate company (ID: %s): backend error code %d. "+
+			"Verify no active jobs or user sessions exist, and that all retention periods have expired. "+
+			"Review the company dependencies in Commvault GUI before retry.",
+			providerID, deactivateResp.Response.ErrorCode)
 	}
 	genericResp := handler.CompanyDelete(providerID)
 	if genericResp.ErrorCode != 0 {
-		return fmt.Errorf("Error in Deletion of Company")
+		return fmt.Errorf("failed to delete company (ID: %s): backend error code %d. "+
+			"Check that deactivation succeeded and no child companies are associated. "+
+			"Review Commvault resource dependencies before retry.",
+			providerID, genericResp.ErrorCode)
 	}
 	d.SetId("")
 	return nil
