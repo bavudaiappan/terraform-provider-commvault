@@ -53,13 +53,14 @@ func resourceCompany() *schema.Resource {
 			"send_email": &schema.Schema{
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: "Specifies whether  email needs to be sent ot not",
+				Default:     false,
+				Description: "Sends a company onboarding/invitation email to the tenant administrator contact when set to true. Defaults to false.",
 			},
 			"company_id": &schema.Schema{
 				Type:        schema.TypeInt,
 				Optional:    true,
 				Default:     0,
-				Description: "Specifies  the company id to which the child company should be associated with.",
+				Description: "Specifies the parent company ID under which this child company is created. Use 0 (default) to create a top-level company with no parent association.",
 			},
 		},
 	}

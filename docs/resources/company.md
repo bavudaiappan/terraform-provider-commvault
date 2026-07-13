@@ -20,7 +20,7 @@ resource "commvault_company" "<local name>"{
 	company_alias = "<Company Alias>"
 	plans = toset(["<Plan name1>", "<Plan name2>"])
 	associated_smtp = "<SMTP Server>"
-	send_email = <Boolean values: true or false>
+	send_email = <Boolean values: true or false> # Optional, default: false
 }
 
 ```
@@ -41,7 +41,6 @@ resource "commvault_company" "Company1"{
 ```
 ## Deletion and Resource Cleanup
 
-<<<<<<< Updated upstream
 When a company resource is destroyed with `terraform destroy`, the provider performs a two-step deletion sequence:
 
 1. **Deactivate**: Disables backup, restore, and login capabilities for the company (via `POST /Organization/{id}/action/deactivate`)
@@ -66,7 +65,6 @@ If `terraform destroy` fails with an error during company deletion, the issue is
 - **Billing or license holds**: Some Commvault environments enforce billing dependencies before allowing company deletion.
 
 **Resolution**: Review the Commvault GUI for this company's resource dependencies (Jobs, Users, Subclients, etc.) before attempting deletion. The Commvault administrator should verify the company can be safely removed before running `terraform destroy`.
-=======
 ### plans Declaration Behavior
 
 The `plans` argument is a **set of strings** (`schema.TypeSet`), not an ordered list.
@@ -75,7 +73,6 @@ The `plans` argument is a **set of strings** (`schema.TypeSet`), not an ordered 
 - Duplicate plan names are collapsed to a single value
 - Use `toset([...])` in examples to make set semantics explicit
 
->>>>>>> Stashed changes
 ### Required
 
 - **company_name** (String) Specifies the name of the Company.
@@ -86,7 +83,7 @@ The `plans` argument is a **set of strings** (`schema.TypeSet`), not an ordered 
 ### Optional
 
 - **associated_smtp** (String) Specifies the SMTP address of the company.
-- **send_email** (Boolean) Specifies whether email needs to be sent ot not
+- **send_email** (Boolean) Sends a company onboarding/invitation email to the tenant administrator contact when set to `true`. Default is `false`.
 - **plans** (Set of String) Specifies the data protection plans to use for the company. This argument is an unordered set. The plans you select are the plans that the tenant administrator can choose from.
 - **company_id** (Number) Specifies the company id to which the child company should be associated with.
 - **id** (String) The ID of this resource.
