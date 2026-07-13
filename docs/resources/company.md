@@ -18,6 +18,7 @@ resource "commvault_company" "<local name>"{
 	email = "<Email ID>"
 	contact_name = "<Contact Name>"
 	company_alias = "<Company Alias>"
+	planids = toset([101, 205])
 	plans = toset(["<Plan name1>", "<Plan name2>"])
 	associated_smtp = "<SMTP Server>"
 	send_email = <Boolean values: true or false> # Optional, default: false
@@ -33,6 +34,7 @@ resource "commvault_company" "Company1"{
 	email = "DemoCompany@company.com"
 	contact_name = "ContactName"
 	company_alias = "CompanyAlias"
+	planids = toset([101, 205])
 	plans = toset(["Plan1", "Plan2"])
 	associated_smtp = "SMTP_Server"
 	send_email = false
@@ -73,6 +75,34 @@ The `plans` argument is a **set of strings** (`schema.TypeSet`), not an ordered 
 - Duplicate plan names are collapsed to a single value
 - Use `toset([...])` in examples to make set semantics explicit
 
+### planids and plans Precedence
+
+- `planids` is preferred and takes precedence when both `planids` and `plans` are provided.
+- If `planids` is not provided, the provider falls back to `plans` (plan names).
+- Recommended: use `planids` for stable associations.
+
+### Defaults and Omitted Behavior
+
+The following defaults/behaviors apply when optional arguments are not set:
+
+| Argument | Default / Omitted behavior |
+|---|---|
+| `send_email` | Defaults to `false`. No onboarding/invitation email is sent unless explicitly set to `true`. |
+| `company_id` | Defaults to `0`. Company is created as top-level (no parent company association). |
+| `planids` | No explicit default. If omitted or empty, provider falls back to `plans` (if provided). |
+| `plans` | No explicit default. If both `planids` and `plans` are omitted/empty, no plans are associated in the create request. |
+| `associated_smtp` | No explicit schema default. If omitted, provider currently sends an empty SMTP value in the create request. |
+
+### Risk of Using plans []
+
+Using `plans` (names) can drift from intent because plan names are mutable.
+
+- A renamed plan may no longer match the configured name.
+- Duplicate or reused names can create ambiguity.
+- Name-based mapping is less stable across tenant/admin changes than ID-based mapping.
+
+Use `planids` whenever possible to avoid these risks.
+
 ### Required
 
 - **company_name** (String) Specifies the name of the Company.
@@ -84,6 +114,7 @@ The `plans` argument is a **set of strings** (`schema.TypeSet`), not an ordered 
 
 - **associated_smtp** (String) Specifies the SMTP address of the company.
 - **send_email** (Boolean) Sends a company onboarding/invitation email to the tenant administrator contact when set to `true`. Default is `false`.
-- **plans** (Set of String) Specifies the data protection plans to use for the company. This argument is an unordered set. The plans you select are the plans that the tenant administrator can choose from.
-- **company_id** (Number) Specifies the company id to which the child company should be associated with.
+- **planids** (Set of Number) Specifies plan IDs to associate with the company. If provided, this is used before `plans`.
+- **plans** (Set of String) Specifies the data protection plans to use for the company. This argument is an unordered set. The plans you select are the plans that the tenant administrator can choose from. If `planids` is provided, `plans` is ignored.
+- **company_id** (Number) Specifies the parent company ID under which this child company is created. Default is `0`, which creates a top-level company with no parent association.
 - **id** (String) The ID of this resource.

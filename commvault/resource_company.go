@@ -40,6 +40,12 @@ func resourceCompany() *schema.Resource {
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: "Specifies the data protection plans to use for the company. The plans you select are the plans that the tenant administrator can choose from.",
 			},
+			"planids": &schema.Schema{
+				Type:        schema.TypeSet,
+				Optional:    true,
+				Elem:        &schema.Schema{Type: schema.TypeInt},
+				Description: "Specifies plan IDs to associate with the company. If planids is provided, it takes precedence over plans.",
+			},
 			"company_alias": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
@@ -76,19 +82,29 @@ func resourceCompanyCreate(d *schema.ResourceData, m interface{}) error {
 	createCompanyReq.OrganizationInfo.OrganizationProperties.PrimaryContacts = append(createCompanyReq.OrganizationInfo.OrganizationProperties.PrimaryContacts, primaryContacts)
 	createCompanyReq.OrganizationInfo.Organization.ShortName.DomainName = d.Get("company_alias").(string)
 	createCompanyReq.SendEmail = d.Get("send_email").(bool)
-	plans := d.Get("plans").(*schema.Set).List()
-	plannames := make([]string, len(plans))
-	for i, n := range plans {
-		plannames[i] = n.(string)
-	}
-	if len(plannames) != 0 {
-		for i := range plannames {
+	planIDs := d.Get("planids").(*schema.Set).List()
+	if len(planIDs) != 0 {
+		for i := range planIDs {
+			planID := planIDs[i].(int)
 			var planDetails handler.PlanDetails
-			planDetails.Plan.PlanName = plannames[i]
+			planDetails.Plan.PlanId = &planID
 			createCompanyReq.OrganizationInfo.PlanDetails = append(createCompanyReq.OrganizationInfo.PlanDetails, planDetails)
 		}
 	} else {
-		createCompanyReq.OrganizationInfo.PlanDetails = make([]handler.PlanDetails, 0)
+		plans := d.Get("plans").(*schema.Set).List()
+		plannames := make([]string, len(plans))
+		for i, n := range plans {
+			plannames[i] = n.(string)
+		}
+		if len(plannames) != 0 {
+			for i := range plannames {
+				var planDetails handler.PlanDetails
+				planDetails.Plan.PlanName = plannames[i]
+				createCompanyReq.OrganizationInfo.PlanDetails = append(createCompanyReq.OrganizationInfo.PlanDetails, planDetails)
+			}
+		} else {
+			createCompanyReq.OrganizationInfo.PlanDetails = make([]handler.PlanDetails, 0)
+		}
 	}
 	companyResp := handler.CompanyCreate(createCompanyReq, d.Get("company_id").(int))
 	errorCode := companyResp.Response.ErrorCode
