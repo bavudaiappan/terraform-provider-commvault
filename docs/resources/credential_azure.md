@@ -112,7 +112,7 @@ Optional:
 - `exclude` (String) Flag to specify if this is included permission or excluded permission.
 - `permissionid` (Number)
 - `permissionname` (String)
-- `type` (String) Returns the type of association. [ALL_CATEGORIES, CATEGORY_ENTITY, PERMISSION_ENTITY]
+- `type` (String) Type of permission association. Use ALL_CATEGORIES to associate all permission categories, CATEGORY_ENTITY to associate a specific category, or PERMISSION_ENTITY to associate a specific permission. [ALL_CATEGORIES, CATEGORY_ENTITY, PERMISSION_ENTITY]
 
 
 <a id="nestedblock--security--associations--user"></a>
