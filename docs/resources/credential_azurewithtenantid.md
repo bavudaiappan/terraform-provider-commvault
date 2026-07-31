@@ -111,7 +111,7 @@ Optional:
 
 Optional:
 
-- `iscreatorassociation` (String) To check if the user/user group associated is the owner.
+- `iscreatorassociation` (String) When true, marks this as a creator association. Distinct from ownership, which is set via the owner block.
 - `permissions` (Block List) List of permissions associated with the entity. Either categoryId and categoryName or permissionId and permissionName will be returned. If categoryId or categoryName is returned, all the corresponding permissions in the category are associated with the entity. (see [below for nested schema](#nestedblock--security--associations--permissions))
 - `user` (Block List) (see [below for nested schema](#nestedblock--security--associations--user))
 - `usergroup` (Block List) (see [below for nested schema](#nestedblock--security--associations--usergroup))
