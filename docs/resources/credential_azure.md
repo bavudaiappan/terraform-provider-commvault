@@ -42,7 +42,7 @@ resource "commvault_credential_azure" "credential_azure-cust" {
   description = "Azure credential created through Terraform"
   security {
      associations {
-      iscreatorassociation = "false"
+      iscreatorassociation = false
       permissions {
           permissionid = data.commvault_permission.cv_permission.id
         }
@@ -51,7 +51,7 @@ resource "commvault_credential_azure" "credential_azure-cust" {
         }
       }
     associations {
-      iscreatorassociation = "false"
+      iscreatorassociation = false
       permissions {
           permissionid = data.commvault_permission.cv_permission.id
         }
