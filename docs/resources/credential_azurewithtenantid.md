@@ -46,7 +46,7 @@ resource "commvault_credential_azurewithtenantid" "credential_azurewithtenantid-
   description = "Azure credential with tenant id created through Terraform"
   security {
     associations {
-      iscreatorassociation = "false"
+      iscreatorassociation = false
       permissions {
           permissionid = data.commvault_permission.cv_permission.id
         }
@@ -55,7 +55,7 @@ resource "commvault_credential_azurewithtenantid" "credential_azurewithtenantid-
         }
       }
     associations {
-      iscreatorassociation = "false"
+      iscreatorassociation = false
       permissions {
           permissionid = data.commvault_permission.cv_permission.id
         }

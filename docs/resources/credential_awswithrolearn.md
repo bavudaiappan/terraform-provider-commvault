@@ -38,7 +38,7 @@ resource "commvault_credential_awswithrolearn" "credential_awswithrolearn-cust" 
   description = "AWS credential- Role ARN created through Terraform"
   security {
     associations {
-      iscreatorassociation = "false"
+      iscreatorassociation = false
       permissions {
           permissionid = 218
         }
@@ -47,7 +47,7 @@ resource "commvault_credential_awswithrolearn" "credential_awswithrolearn-cust" 
         }
       }
     associations {
-      iscreatorassociation = "false"
+      iscreatorassociation = false
       permissions {
           permissionid = data.commvault_permission.cv_permission.id
         }

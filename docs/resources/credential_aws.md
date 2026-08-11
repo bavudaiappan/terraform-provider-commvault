@@ -40,7 +40,7 @@ resource "commvault_credential_aws" "credential_aws-cust" {
   description = "AWS credential created through Terraform"
   security {
     associations {
-      iscreatorassociation = "false"
+      iscreatorassociation = false
       permissions {
           permissionid = 218
         }
@@ -49,7 +49,7 @@ resource "commvault_credential_aws" "credential_aws-cust" {
         }
       }
     associations {
-      iscreatorassociation = "false"
+      iscreatorassociation = false
       permissions {
           permissionid = data.commvault_permission.cv_permission.id
         }
