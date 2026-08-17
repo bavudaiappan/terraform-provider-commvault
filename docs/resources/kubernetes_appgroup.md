@@ -322,6 +322,18 @@ Read-Only:
 <a id="nestedblock--content"></a>
 ### Nested Schema for `content`
 
+`content` controls which Kubernetes resources are included in the backup. Three modes are supported:
+
+- **`applications` only** — explicit selection by GUID. Use `commvault_kubernetes_namespaces`,
+  `commvault_kubernetes_applications`, or `commvault_kubernetes_volumes` data sources to obtain the GUID,
+  or construct it manually as `` namespace`Kind`name`<k8s-uid> ``.
+- **`labelselectors` only** — dynamic selection. Any Kubernetes resource matching the given labels
+  at backup time is included. Useful for namespace-level or workload-level coverage without listing GUIDs.
+- **Both combined** — the union of all matched resources is protected.
+
+The `filters` block is the exclusion counterpart to `content`: resources matching `filters` are removed
+from the final backup scope regardless of what `content` selects.
+
 Optional:
 
 - `applications` (Block Set) List of applications to be added as content (see [below for nested schema](#nestedblock--content--applications))
