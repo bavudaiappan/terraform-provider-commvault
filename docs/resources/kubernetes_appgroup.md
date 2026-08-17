@@ -13,11 +13,17 @@ Use the commvault_kubernetes_appgroup resource type to create or delete kubernet
 ## Example Usage
 
 **Configure commvault kubernetes appgroup with required fields**
+
+Each `commvault_kubernetes_*` data source requires a live cluster ID, so the cluster resource
+must be created first. Data sources resolve Kubernetes object GUIDs by name at plan time.
+
 ```hcl
+# Access node (MediaAgent) that communicates with the cluster API server
 data "commvault_client" "access_node1" {
   name = "client1"
 }
 
+# Backup plan that defines the RPO and retention for this application group
 data "commvault_plan" "plan1" {
   name = "AWS-Test-Plan"
 }
@@ -33,28 +39,33 @@ resource "commvault_kubernetes_cluster" "kubernetes_cluster1" {
   }
 }
 
+# Resolves the GUID of a specific pod by name and namespace
 data "commvault_kubernetes_applications" "kubernetes_applications" {
   name      = "my-pod"
   clusterid =  commvault_kubernetes_cluster.kubernetes_cluster1.id
   namespace = "default"
 }
 
+# Resolves the GUID of a Kubernetes label selector
 data "commvault_kubernetes_labels" "kubernetes_labels" {
   name      = "modifierAt=12655"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster1.id
   namespace = "default"
 }
 
+# Resolves the GUID of a namespace by name
 data "commvault_kubernetes_namespaces" "kubernetes_namespaces" {
   name      = "1sts-volctemplate"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster1.id
 }
 
+# Resolves the GUID of a StorageClass by name
 data "commvault_kubernetes_storageclasses" "kubernetes_storageclasses" {
   name      = "rook-ceph-block"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster1.id
 }
 
+# Resolves the GUID of a PersistentVolumeClaim by name and namespace
 data "commvault_kubernetes_volumes" "kubernetes_volumes" {
   name      = "mysql-pvc"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster1.id
@@ -107,23 +118,32 @@ resource "commvault_kubernetes_appgroup" "kubernetes_appgroup1" {
 ```
 
 **Configure commvault kubernetes appgroup with custom fields**
+
+This example shows optional fields: `filters`, `activitycontrol`, `timezone`, and `options`.
+Data sources are scoped to the cluster created in the same config block.
+
 ```hcl
+# Access node (MediaAgent) for the cluster
 data "commvault_client" "access_node1" {
   name = "bdcsrvtest05"
 }
 
+# Plan used for etcd protection on the cluster
 data "commvault_plan" "plan1" {
   name = "AWS-Test-Plan"
 }
 
+# Region to associate with the cluster
 data "commvault_region"   "region1" {
   name = "Australia"
 }
 
+# Backup plan for the application group
 data "commvault_plan" "plan2" {
   name = "Demo Plan"
 }
 
+# Timezone used to interpret jobstarttime (seconds from midnight)
 data "commvault_timezone" "timezone2" {
   name = "Singapore Standard Time"
 }
@@ -171,22 +191,26 @@ data "commvault_kubernetes_applications" "kubernetes_applications" {
   namespace = "default"
 }
 
+# Resolves the GUID of a Kubernetes label selector
 data "commvault_kubernetes_labels" "kubernetes_labels" {
   name      = "modifierAt=12655"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster2.id
   namespace = "default"
 }
 
+# Resolves the GUID of a namespace by name
 data "commvault_kubernetes_namespaces" "kubernetes_namespaces" {
   name      = "1sts-volctemplate"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster2.id
 }
 
+# Resolves the GUID of a StorageClass by name
 data "commvault_kubernetes_storageclasses" "kubernetes_storageclasses" {
   name      = "rook-ceph-block"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster2.id
 }
 
+# Resolves the GUID of a PersistentVolumeClaim by name and namespace
 data "commvault_kubernetes_volumes" "kubernetes_volumes" {
   name      = "mysql-pvc"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster2.id
