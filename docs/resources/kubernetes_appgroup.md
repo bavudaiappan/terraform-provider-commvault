@@ -401,7 +401,7 @@ Optional:
 
 - `backupstreams` (Number) Define number of parallel data readers
 - `scheduleworkertoconfignamespace` (String) When true, schedules worker Pods into the Commvault config namespace (confignamespace). Enable for CSI snapshot-based backups so the worker can access VolumeSnapshot CRDs. See also: options.workernamespace, cluster options.confignamespace.
-- `jobstarttime` (Number) Define the backup job start time in epochs
+- `jobstarttime` (Number) Offset from midnight in seconds at which the backup job starts each day (e.g. 66540 = 18:29:00). Use with the timezone field.
 - `snapfallbacktolivevolumebackup` (String) Define setting to enable fallback to live volume backup in case of snap failure
 - `workerresources` (Block List) (see [below for nested schema](#nestedblock--options--workerresources))
 
