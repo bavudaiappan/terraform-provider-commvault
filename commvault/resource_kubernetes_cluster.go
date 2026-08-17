@@ -1,13 +1,13 @@
 package commvault
 
 import (
-    "fmt"
-    "strconv"
-    "strings"
+	"fmt"
+	"strconv"
+	"strings"
 
-    "terraform-provider-commvault/commvault/handler"
+	"terraform-provider-commvault/commvault/handler"
 
-    "github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceKubernetes_Cluster() *schema.Resource {
@@ -254,7 +254,7 @@ func resourceKubernetes_Cluster() *schema.Resource {
             "tags": {
                 Type:        schema.TypeSet,
                 Optional:    true,
-                Description: "Modify or add tags on the cluster",
+                Description: "Commvault entity tags (key-value metadata) on the cluster resource in CommCell. These are not Kubernetes labels and do not affect backup content selection.",
                 Elem: &schema.Resource{
                     Schema: map[string]*schema.Schema{
                         "name": {

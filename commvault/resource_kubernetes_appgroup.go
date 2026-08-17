@@ -301,7 +301,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
             "tags": {
                 Type:        schema.TypeSet,
                 Optional:    true,
-                Description: "",
+                Description: "Commvault entity tags (key-value metadata) on the application group resource in CommCell. Use content.labelselectors for Kubernetes label-based content selection.",
                 Elem: &schema.Resource{
                     Schema: map[string]*schema.Schema{
                         "name": {

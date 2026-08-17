@@ -99,7 +99,7 @@ resource "commvault_kubernetes_cluster" "kubernetes_cluster2" {
 - `options` (Block List) Request definition for cluster advanced options (see [below for nested schema](#nestedblock--options))
 - `region` (Block List) (see [below for nested schema](#nestedblock--region))
 - `servicetype` (String) The Service Type of the Kubernetes cluster [ONPREM, AKS]
-- `tags` (Block Set) Modify or add tags on the cluster (see [below for nested schema](#nestedblock--tags))
+- `tags` (Block Set) Commvault entity tags (key-value metadata) on the cluster resource in CommCell. These are not Kubernetes labels and do not affect backup content selection. (see [below for nested schema](#nestedblock--tags))
 
 ### Read-Only
 
