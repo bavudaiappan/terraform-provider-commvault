@@ -293,7 +293,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
                             Type:        schema.TypeInt,
                             Optional:    true,
                             Computed:    true,
-                            Description: "Define the backup job start time in epochs",
+                            Description: "Offset from midnight in seconds at which the backup job starts each day (e.g. 66540 = 18:29:00). Use with the timezone field.",
                         },
                     },
                 },
