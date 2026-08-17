@@ -400,7 +400,7 @@ Required:
 Optional:
 
 - `backupstreams` (Number) Define number of parallel data readers
-- `cvnamespacescheduling` (String) Define setting to enable scheduling worker Pods to CV Namespace for CSI-Snapshot enabled backups
+- `scheduleworkertoconfignamespace` (String) When true, schedules worker Pods into the Commvault config namespace (confignamespace). Enable for CSI snapshot-based backups so the worker can access VolumeSnapshot CRDs. See also: options.workernamespace, cluster options.confignamespace.
 - `jobstarttime` (Number) Define the backup job start time in epochs
 - `snapfallbacktolivevolumebackup` (String) Define setting to enable fallback to live volume backup in case of snap failure
 - `workerresources` (Block List) (see [below for nested schema](#nestedblock--options--workerresources))
