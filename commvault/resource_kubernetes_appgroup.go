@@ -1,13 +1,13 @@
 package commvault
 
 import (
-    "fmt"
-    "strconv"
-    "strings"
+	"fmt"
+	"strconv"
+	"strings"
 
-    "terraform-provider-commvault/commvault/handler"
+	"terraform-provider-commvault/commvault/handler"
 
-    "github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceKubernetes_Appgroup() *schema.Resource {
@@ -235,7 +235,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
                             Type:        schema.TypeString,
                             Optional:    true,
                             Computed:    true,
-                            Description: "Define setting to enable scheduling worker Pods to CV Namespace for CSI-Snapshot enabled backups",
+                            Description: "When true, schedules worker Pods into the Commvault config namespace (confignamespace). Enable for CSI snapshot-based backups so the worker can access VolumeSnapshot CRDs. See also: options.workernamespace, cluster options.confignamespace.",
                         },
                         "workerresources": {
                             Type:        schema.TypeList,
