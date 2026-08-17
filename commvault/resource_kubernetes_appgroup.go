@@ -200,7 +200,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
                 Type:        schema.TypeList,
                 Optional:    true,
                 Computed:    true,
-                Description: "",
+                Description: "Timezone for the application group schedule. Affects when jobstarttime is evaluated. Use the commvault_timezone data source to look up the ID.",
                 Elem: &schema.Resource{
                     Schema: map[string]*schema.Schema{
                         "name": {
@@ -222,7 +222,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
                 Type:        schema.TypeList,
                 Optional:    true,
                 Computed:    true,
-                Description: "",
+                Description: "Appgroup-level operational settings including schedule start time, worker configuration, and snapshot behaviour.",
                 Elem: &schema.Resource{
                     Schema: map[string]*schema.Schema{
                         "backupstreams": {

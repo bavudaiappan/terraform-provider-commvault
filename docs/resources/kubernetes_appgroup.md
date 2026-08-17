@@ -291,9 +291,9 @@ resource "commvault_kubernetes_appgroup" "kubernetes_appgroup2" {
 ### Optional
 - `activitycontrol` (Block List) (see [below for nested schema](#nestedblock--activitycontrol))
 - `filters` (Block List) (see [below for nested schema](#nestedblock--filters))
-- `options` (Block List) (see [below for nested schema](#nestedblock--options))
+- `options` (Block List) Appgroup-level operational settings including schedule start time, worker configuration, and snapshot behaviour. (see [below for nested schema](#nestedblock--options))
 - `tags` (Block Set) (see [below for nested schema](#nestedblock--tags))
-- `timezone` (Block List) (see [below for nested schema](#nestedblock--timezone))
+- `timezone` (Block List) Timezone for the application group schedule. Affects when jobstarttime is evaluated. Use the commvault_timezone data source to look up the ID. (see [below for nested schema](#nestedblock--timezone))
 
 ### Read-Only
 
