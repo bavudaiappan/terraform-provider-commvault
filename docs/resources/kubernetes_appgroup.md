@@ -344,7 +344,7 @@ Optional:
 
 Required:
 
-- `guid` (String) GUID value of the Kubernetes Application to be associated as content
+- `guid` (String) GUID of the Kubernetes resource as tracked by CommCell. Retrieve via the `commvault_kubernetes_namespaces`, `commvault_kubernetes_applications`, or `commvault_kubernetes_volumes` data source. For unsupported types, construct manually: `` namespace`Kind`name`<k8s-uid> ``.
 - `type` (String) Type of the Kubernetes application [NAMESPACE, APPLICATION, PVC, LABELS]
 
 Optional:
@@ -376,7 +376,7 @@ Optional:
 
 Required:
 
-- `guid` (String) GUID value of the Kubernetes Application to be associated as content
+- `guid` (String) GUID of the Kubernetes resource as tracked by CommCell. Retrieve via the `commvault_kubernetes_namespaces`, `commvault_kubernetes_applications`, or `commvault_kubernetes_volumes` data source. For unsupported types, construct manually: `` namespace`Kind`name`<k8s-uid> ``.
 - `type` (String) Type of the Kubernetes application [NAMESPACE, APPLICATION, PVC, LABELS]
 
 Optional:
