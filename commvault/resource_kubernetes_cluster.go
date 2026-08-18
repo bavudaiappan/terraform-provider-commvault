@@ -77,7 +77,7 @@ func resourceKubernetes_Cluster() *schema.Resource {
                 Type:        schema.TypeString,
                 Optional:    true,
                 Computed:    true,
-                Description: "The Service Type of the Kubernetes cluster [ONPREM, AKS]",
+                Description: "Service type of the Kubernetes cluster. Omit to let the server infer the type. Accepted values: ONPREM (on-premises), AKS (Azure Kubernetes Service), EKS (Amazon Elastic Kubernetes Service), GKE (Google Kubernetes Engine), OKE (Oracle Kubernetes Engine), TANZU, RANCHER, OPENSHIFT.",
             },
             "etcdprotection": {
                 Type:        schema.TypeList,

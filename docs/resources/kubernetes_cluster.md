@@ -98,7 +98,7 @@ resource "commvault_kubernetes_cluster" "kubernetes_cluster2" {
 - `etcdprotection` (Block List) ETCD Protection options for a cluster (see [below for nested schema](#nestedblock--etcdprotection))
 - `options` (Block List) Request definition for cluster advanced options (see [below for nested schema](#nestedblock--options))
 - `region` (Block List) (see [below for nested schema](#nestedblock--region))
-- `servicetype` (String) The Service Type of the Kubernetes cluster [ONPREM, AKS]
+- `servicetype` (String) Service type of the Kubernetes cluster. Omit to let the server infer the type. Accepted values: `ONPREM` (on-premises), `AKS` (Azure Kubernetes Service), `EKS` (Amazon Elastic Kubernetes Service), `GKE` (Google Kubernetes Engine), `OKE` (Oracle Kubernetes Engine), `TANZU`, `RANCHER`, `OPENSHIFT`.
 - `tags` (Block Set) Commvault entity tags (key-value metadata) on the cluster resource in CommCell. These are not Kubernetes labels and do not affect backup content selection. (see [below for nested schema](#nestedblock--tags))
 
 ### Read-Only
