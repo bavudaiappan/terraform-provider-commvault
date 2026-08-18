@@ -65,7 +65,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
                                     "guid": {
                                         Type:        schema.TypeString,
                                         Required:    true,
-                                        Description: "GUID value of the Kubernetes Application to be associated as content",
+                                        Description: "GUID of the Kubernetes resource as tracked by CommCell. Retrieve via the commvault_kubernetes_namespaces, commvault_kubernetes_applications, or commvault_kubernetes_volumes data source. For unsupported types, construct manually: namespace`Kind`name`<k8s-uid>.",
                                     },
                                     "name": {
                                         Type:        schema.TypeString,
@@ -140,7 +140,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
                                     "guid": {
                                         Type:        schema.TypeString,
                                         Required:    true,
-                                        Description: "GUID value of the Kubernetes Application to be associated as content",
+                                        Description: "GUID of the Kubernetes resource as tracked by CommCell. Retrieve via the commvault_kubernetes_namespaces, commvault_kubernetes_applications, or commvault_kubernetes_volumes data source. For unsupported types, construct manually: namespace`Kind`name`<k8s-uid>.",
                                     },
                                     "name": {
                                         Type:        schema.TypeString,
