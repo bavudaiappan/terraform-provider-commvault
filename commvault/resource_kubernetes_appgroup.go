@@ -1,13 +1,13 @@
 package commvault
 
 import (
-    "fmt"
-    "strconv"
-    "strings"
+	"fmt"
+	"strconv"
+	"strings"
 
-    "terraform-provider-commvault/commvault/handler"
+	"terraform-provider-commvault/commvault/handler"
 
-    "github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceKubernetes_Appgroup() *schema.Resource {
@@ -65,7 +65,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
                                     "guid": {
                                         Type:        schema.TypeString,
                                         Required:    true,
-                                        Description: "GUID value of the Kubernetes Application to be associated as content",
+                                        Description: "GUID of the Kubernetes resource as tracked by CommCell. Retrieve via the commvault_kubernetes_namespaces, commvault_kubernetes_applications, or commvault_kubernetes_volumes data source. For unsupported types, construct manually: namespace`Kind`name`<k8s-uid>.",
                                     },
                                     "name": {
                                         Type:        schema.TypeString,
@@ -140,7 +140,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
                                     "guid": {
                                         Type:        schema.TypeString,
                                         Required:    true,
-                                        Description: "GUID value of the Kubernetes Application to be associated as content",
+                                        Description: "GUID of the Kubernetes resource as tracked by CommCell. Retrieve via the commvault_kubernetes_namespaces, commvault_kubernetes_applications, or commvault_kubernetes_volumes data source. For unsupported types, construct manually: namespace`Kind`name`<k8s-uid>.",
                                     },
                                     "name": {
                                         Type:        schema.TypeString,
@@ -200,7 +200,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
                 Type:        schema.TypeList,
                 Optional:    true,
                 Computed:    true,
-                Description: "",
+                Description: "Timezone for the application group schedule. Affects when jobstarttime is evaluated. Use the commvault_timezone data source to look up the ID.",
                 Elem: &schema.Resource{
                     Schema: map[string]*schema.Schema{
                         "name": {
@@ -222,7 +222,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
                 Type:        schema.TypeList,
                 Optional:    true,
                 Computed:    true,
-                Description: "",
+                Description: "Appgroup-level operational settings including schedule start time, worker configuration, and snapshot behaviour.",
                 Elem: &schema.Resource{
                     Schema: map[string]*schema.Schema{
                         "backupstreams": {
@@ -235,7 +235,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
                             Type:        schema.TypeString,
                             Optional:    true,
                             Computed:    true,
-                            Description: "Define setting to enable scheduling worker Pods to CV Namespace for CSI-Snapshot enabled backups",
+                            Description: "When true, schedules worker Pods into the Commvault config namespace (confignamespace). Enable for CSI snapshot-based backups so the worker can access VolumeSnapshot CRDs. See also: options.workernamespace, cluster options.confignamespace.",
                         },
                         "workerresources": {
                             Type:        schema.TypeList,
@@ -293,7 +293,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
                             Type:        schema.TypeInt,
                             Optional:    true,
                             Computed:    true,
-                            Description: "Define the backup job start time in epochs",
+                            Description: "Offset from midnight in seconds at which the backup job starts each day (e.g. 66540 = 18:29:00). Use with the timezone field.",
                         },
                     },
                 },
@@ -301,7 +301,7 @@ func resourceKubernetes_Appgroup() *schema.Resource {
             "tags": {
                 Type:        schema.TypeSet,
                 Optional:    true,
-                Description: "",
+                Description: "Commvault entity tags (key-value metadata) on the application group resource in CommCell. Use content.labelselectors for Kubernetes label-based content selection.",
                 Elem: &schema.Resource{
                     Schema: map[string]*schema.Schema{
                         "name": {

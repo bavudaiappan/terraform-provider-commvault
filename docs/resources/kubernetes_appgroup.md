@@ -13,11 +13,17 @@ Use the commvault_kubernetes_appgroup resource type to create or delete kubernet
 ## Example Usage
 
 **Configure commvault kubernetes appgroup with required fields**
+
+Each `commvault_kubernetes_*` data source requires a live cluster ID, so the cluster resource
+must be created first. Data sources resolve Kubernetes object GUIDs by name at plan time.
+
 ```hcl
+# Access node (MediaAgent) that communicates with the cluster API server
 data "commvault_client" "access_node1" {
   name = "client1"
 }
 
+# Backup plan that defines the RPO and retention for this application group
 data "commvault_plan" "plan1" {
   name = "AWS-Test-Plan"
 }
@@ -33,28 +39,33 @@ resource "commvault_kubernetes_cluster" "kubernetes_cluster1" {
   }
 }
 
+# Resolves the GUID of a specific pod by name and namespace
 data "commvault_kubernetes_applications" "kubernetes_applications" {
   name      = "my-pod"
   clusterid =  commvault_kubernetes_cluster.kubernetes_cluster1.id
   namespace = "default"
 }
 
+# Resolves the GUID of a Kubernetes label selector
 data "commvault_kubernetes_labels" "kubernetes_labels" {
   name      = "modifierAt=12655"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster1.id
   namespace = "default"
 }
 
+# Resolves the GUID of a namespace by name
 data "commvault_kubernetes_namespaces" "kubernetes_namespaces" {
   name      = "1sts-volctemplate"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster1.id
 }
 
+# Resolves the GUID of a StorageClass by name
 data "commvault_kubernetes_storageclasses" "kubernetes_storageclasses" {
   name      = "rook-ceph-block"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster1.id
 }
 
+# Resolves the GUID of a PersistentVolumeClaim by name and namespace
 data "commvault_kubernetes_volumes" "kubernetes_volumes" {
   name      = "mysql-pvc"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster1.id
@@ -107,23 +118,32 @@ resource "commvault_kubernetes_appgroup" "kubernetes_appgroup1" {
 ```
 
 **Configure commvault kubernetes appgroup with custom fields**
+
+This example shows optional fields: `filters`, `activitycontrol`, `timezone`, and `options`.
+Data sources are scoped to the cluster created in the same config block.
+
 ```hcl
+# Access node (MediaAgent) for the cluster
 data "commvault_client" "access_node1" {
   name = "bdcsrvtest05"
 }
 
+# Plan used for etcd protection on the cluster
 data "commvault_plan" "plan1" {
   name = "AWS-Test-Plan"
 }
 
+# Region to associate with the cluster
 data "commvault_region"   "region1" {
   name = "Australia"
 }
 
+# Backup plan for the application group
 data "commvault_plan" "plan2" {
   name = "Demo Plan"
 }
 
+# Timezone used to interpret jobstarttime (seconds from midnight)
 data "commvault_timezone" "timezone2" {
   name = "Singapore Standard Time"
 }
@@ -171,22 +191,26 @@ data "commvault_kubernetes_applications" "kubernetes_applications" {
   namespace = "default"
 }
 
+# Resolves the GUID of a Kubernetes label selector
 data "commvault_kubernetes_labels" "kubernetes_labels" {
   name      = "modifierAt=12655"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster2.id
   namespace = "default"
 }
 
+# Resolves the GUID of a namespace by name
 data "commvault_kubernetes_namespaces" "kubernetes_namespaces" {
   name      = "1sts-volctemplate"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster2.id
 }
 
+# Resolves the GUID of a StorageClass by name
 data "commvault_kubernetes_storageclasses" "kubernetes_storageclasses" {
   name      = "rook-ceph-block"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster2.id
 }
 
+# Resolves the GUID of a PersistentVolumeClaim by name and namespace
 data "commvault_kubernetes_volumes" "kubernetes_volumes" {
   name      = "mysql-pvc"
   clusterid = commvault_kubernetes_cluster.kubernetes_cluster2.id
@@ -267,9 +291,9 @@ resource "commvault_kubernetes_appgroup" "kubernetes_appgroup2" {
 ### Optional
 - `activitycontrol` (Block List) (see [below for nested schema](#nestedblock--activitycontrol))
 - `filters` (Block List) (see [below for nested schema](#nestedblock--filters))
-- `options` (Block List) (see [below for nested schema](#nestedblock--options))
-- `tags` (Block Set) (see [below for nested schema](#nestedblock--tags))
-- `timezone` (Block List) (see [below for nested schema](#nestedblock--timezone))
+- `options` (Block List) Appgroup-level operational settings including schedule start time, worker configuration, and snapshot behaviour. (see [below for nested schema](#nestedblock--options))
+- `tags` (Block Set) Commvault entity tags (key-value metadata) on the application group resource in CommCell. Use content.labelselectors for Kubernetes label-based content selection. (see [below for nested schema](#nestedblock--tags))
+- `timezone` (Block List) Timezone for the application group schedule. Affects when jobstarttime is evaluated. Use the commvault_timezone data source to look up the ID. (see [below for nested schema](#nestedblock--timezone))
 
 ### Read-Only
 
@@ -298,6 +322,18 @@ Read-Only:
 <a id="nestedblock--content"></a>
 ### Nested Schema for `content`
 
+`content` controls which Kubernetes resources are included in the backup. Three modes are supported:
+
+- **`applications` only** — explicit selection by GUID. Use `commvault_kubernetes_namespaces`,
+  `commvault_kubernetes_applications`, or `commvault_kubernetes_volumes` data sources to obtain the GUID,
+  or construct it manually as `` namespace`Kind`name`<k8s-uid> ``.
+- **`labelselectors` only** — dynamic selection. Any Kubernetes resource matching the given labels
+  at backup time is included. Useful for namespace-level or workload-level coverage without listing GUIDs.
+- **Both combined** — the union of all matched resources is protected.
+
+The `filters` block is the exclusion counterpart to `content`: resources matching `filters` are removed
+from the final backup scope regardless of what `content` selects.
+
 Optional:
 
 - `applications` (Block Set) List of applications to be added as content (see [below for nested schema](#nestedblock--content--applications))
@@ -308,7 +344,7 @@ Optional:
 
 Required:
 
-- `guid` (String) GUID value of the Kubernetes Application to be associated as content
+- `guid` (String) GUID of the Kubernetes resource as tracked by CommCell. Retrieve via the `commvault_kubernetes_namespaces`, `commvault_kubernetes_applications`, or `commvault_kubernetes_volumes` data source. For unsupported types, construct manually: `` namespace`Kind`name`<k8s-uid> ``.
 - `type` (String) Type of the Kubernetes application [NAMESPACE, APPLICATION, PVC, LABELS]
 
 Optional:
@@ -340,7 +376,7 @@ Optional:
 
 Required:
 
-- `guid` (String) GUID value of the Kubernetes Application to be associated as content
+- `guid` (String) GUID of the Kubernetes resource as tracked by CommCell. Retrieve via the `commvault_kubernetes_namespaces`, `commvault_kubernetes_applications`, or `commvault_kubernetes_volumes` data source. For unsupported types, construct manually: `` namespace`Kind`name`<k8s-uid> ``.
 - `type` (String) Type of the Kubernetes application [NAMESPACE, APPLICATION, PVC, LABELS]
 
 Optional:
@@ -364,8 +400,8 @@ Required:
 Optional:
 
 - `backupstreams` (Number) Define number of parallel data readers
-- `cvnamespacescheduling` (String) Define setting to enable scheduling worker Pods to CV Namespace for CSI-Snapshot enabled backups
-- `jobstarttime` (Number) Define the backup job start time in epochs
+- `scheduleworkertoconfignamespace` (String) When true, schedules worker Pods into the Commvault config namespace (confignamespace). Enable for CSI snapshot-based backups so the worker can access VolumeSnapshot CRDs. See also: options.workernamespace, cluster options.confignamespace.
+- `jobstarttime` (Number) Offset from midnight in seconds at which the backup job starts each day (e.g. 66540 = 18:29:00). Use with the timezone field.
 - `snapfallbacktolivevolumebackup` (String) Define setting to enable fallback to live volume backup in case of snap failure
 - `workerresources` (Block List) (see [below for nested schema](#nestedblock--options--workerresources))
 

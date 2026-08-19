@@ -98,8 +98,8 @@ resource "commvault_kubernetes_cluster" "kubernetes_cluster2" {
 - `etcdprotection` (Block List) ETCD Protection options for a cluster (see [below for nested schema](#nestedblock--etcdprotection))
 - `options` (Block List) Request definition for cluster advanced options (see [below for nested schema](#nestedblock--options))
 - `region` (Block List) (see [below for nested schema](#nestedblock--region))
-- `servicetype` (String) The Service Type of the Kubernetes cluster [ONPREM, AKS]
-- `tags` (Block Set) Modify or add tags on the cluster (see [below for nested schema](#nestedblock--tags))
+- `servicetype` (String) Service type of the Kubernetes cluster. Omit to let the server infer the type. Accepted values: `ONPREM` (on-premises), `AKS` (Azure Kubernetes Service), `EKS` (Amazon Elastic Kubernetes Service), `GKE` (Google Kubernetes Engine), `OKE` (Oracle Kubernetes Engine), `TANZU`, `RANCHER`, `OPENSHIFT`.
+- `tags` (Block Set) Commvault entity tags (key-value metadata) on the cluster resource in CommCell. These are not Kubernetes labels and do not affect backup content selection. (see [below for nested schema](#nestedblock--tags))
 
 ### Read-Only
 
@@ -123,9 +123,9 @@ Read-Only:
 Optional:
 
 - `enablebackup` (String) Enable or disable backup for cluster
-- `enablebackupafteradelay` (Number) Enabling backup after a delay. Provide UTC Time in Unix format
+- `enablebackupafteradelay` (Number) UTC Unix timestamp after which backup will be automatically re-enabled. Only takes effect when `enablebackup = "false"`; ignored when `enablebackup = "true"`.
 - `enablerestore` (String) Enable or disable restore for cluster
-- `enablerestoreafteradelay` (Number) Enabling restore after a delay. Provide UTC Time in Unix format
+- `enablerestoreafteradelay` (Number) UTC Unix timestamp after which restore will be automatically re-enabled. Only takes effect when `enablerestore = "false"`; ignored when `enablerestore = "true"`.
 
 
 <a id="nestedblock--etcdprotection"></a>

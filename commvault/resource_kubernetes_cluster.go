@@ -1,13 +1,13 @@
 package commvault
 
 import (
-    "fmt"
-    "strconv"
-    "strings"
+	"fmt"
+	"strconv"
+	"strings"
 
-    "terraform-provider-commvault/commvault/handler"
+	"terraform-provider-commvault/commvault/handler"
 
-    "github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceKubernetes_Cluster() *schema.Resource {
@@ -77,7 +77,7 @@ func resourceKubernetes_Cluster() *schema.Resource {
                 Type:        schema.TypeString,
                 Optional:    true,
                 Computed:    true,
-                Description: "The Service Type of the Kubernetes cluster [ONPREM, AKS]",
+                Description: "Service type of the Kubernetes cluster. Omit to let the server infer the type. Accepted values: ONPREM (on-premises), AKS (Azure Kubernetes Service), EKS (Amazon Elastic Kubernetes Service), GKE (Google Kubernetes Engine), OKE (Oracle Kubernetes Engine), TANZU, RANCHER, OPENSHIFT.",
             },
             "etcdprotection": {
                 Type:        schema.TypeList,
@@ -134,7 +134,7 @@ func resourceKubernetes_Cluster() *schema.Resource {
                             Type:        schema.TypeInt,
                             Optional:    true,
                             Computed:    true,
-                            Description: "Enabling backup after a delay. Provide UTC Time in Unix format",
+                            Description: "UTC Unix timestamp after which backup will be automatically re-enabled. Only takes effect when enablebackup = \"false\"; ignored when enablebackup = \"true\".",
                         },
                         "enablebackup": {
                             Type:        schema.TypeString,
@@ -146,7 +146,7 @@ func resourceKubernetes_Cluster() *schema.Resource {
                             Type:        schema.TypeInt,
                             Optional:    true,
                             Computed:    true,
-                            Description: "Enabling restore after a delay. Provide UTC Time in Unix format",
+                            Description: "UTC Unix timestamp after which restore will be automatically re-enabled. Only takes effect when enablerestore = \"false\"; ignored when enablerestore = \"true\".",
                         },
                         "enablerestore": {
                             Type:        schema.TypeString,
@@ -254,7 +254,7 @@ func resourceKubernetes_Cluster() *schema.Resource {
             "tags": {
                 Type:        schema.TypeSet,
                 Optional:    true,
-                Description: "Modify or add tags on the cluster",
+                Description: "Commvault entity tags (key-value metadata) on the cluster resource in CommCell. These are not Kubernetes labels and do not affect backup content selection.",
                 Elem: &schema.Resource{
                     Schema: map[string]*schema.Schema{
                         "name": {

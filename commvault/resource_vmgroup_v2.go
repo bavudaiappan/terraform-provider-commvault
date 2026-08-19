@@ -589,7 +589,7 @@ func resourceVMGroup_V2() *schema.Resource {
                             },
                         },
                         "iscreatorassociation": {
-                            Type:        schema.TypeString,
+                            Type:        schema.TypeBool,
                             Optional:    true,
                             Description: "",
                         },
@@ -634,14 +634,14 @@ func resourceVMGroup_V2() *schema.Resource {
                                         Description: "",
                                     },
                                     "exclude": {
-                                        Type:        schema.TypeString,
+                                        Type:        schema.TypeBool,
                                         Optional:    true,
                                         Description: "Flag to specify if this is included permission or excluded permission.",
                                     },
                                     "type": {
                                         Type:        schema.TypeString,
                                         Optional:    true,
-                                        Description: "Returns the type of association. [ALL_CATEGORIES, CATEGORY_ENTITY, PERMISSION_ENTITY]",
+                                        Description: "Type of permission association. Use ALL_CATEGORIES to associate all permission categories, CATEGORY_ENTITY to associate a specific category, or PERMISSION_ENTITY to associate a specific permission. [ALL_CATEGORIES, CATEGORY_ENTITY, PERMISSION_ENTITY]",
                                     },
                                     "categoryname": {
                                         Type:        schema.TypeString,
@@ -3386,7 +3386,7 @@ func serialize_vmgroup_v2_msgsecurityassocset_array(d *schema.ResourceData, data
             added = true
         }
         if data[i].IsCreatorAssociation != nil {
-            tmp["iscreatorassociation"] = strconv.FormatBool(*data[i].IsCreatorAssociation)
+            tmp["iscreatorassociation"] = *data[i].IsCreatorAssociation
             added = true
         }
         if rtn, ok := serialize_vmgroup_v2_msgexternalusergroup(d, data[i].ExternalUserGroup); ok {
@@ -3427,7 +3427,7 @@ func serialize_vmgroup_v2_msgpermissionrespset_array(d *schema.ResourceData, dat
             added = true
         }
         if data[i].Exclude != nil {
-            tmp["exclude"] = strconv.FormatBool(*data[i].Exclude)
+            tmp["exclude"] = *data[i].Exclude
             added = true
         }
         if data[i].Type != nil {
