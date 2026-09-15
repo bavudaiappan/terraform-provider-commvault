@@ -108,6 +108,7 @@ func Provider() *schema.Provider {
 			"commvault_oracle_install_agent":         resourceOracleInstallAgent(),
 			"commvault_oracle_backup":                resourceOracleBackup(),
 			"commvault_oracle_restore":               resourceOracleRestore(),
+			"commvault_azurefile_instance":           resourceAzureFileInstance(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"commvault_user":                    datasourceUser(),
