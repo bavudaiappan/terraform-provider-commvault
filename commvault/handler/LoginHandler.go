@@ -27,22 +27,11 @@ type AccessTokenError struct {
 
 type AccessTokenInfo struct {
 	AccessToken string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken"`
 }
 
 type AccessTokenCreateResp struct {
 	Error     AccessTokenError `json:"error"`
 	TokenInfo AccessTokenInfo  `json:"tokenInfo"`
-}
-
-type AccessTokenRenewReq struct {
-	AccessToken  string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken"`
-}
-
-type AccessTokenRenewResp struct {
-	AccessToken string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken"`
 }
 
 func createAccessTokenPair(bootstrapToken string, tokenName string) (*AccessTokenCreateResp, error) {
@@ -79,24 +68,10 @@ func buildV4TokenURL(path string) string {
 	return base + "/V4" + path
 }
 
-func setRuntimeTokens(accessToken string, refreshToken string) {
+func setRuntimeTokens(accessToken string) {
 	if accessToken != "" {
 		os.Setenv("AuthToken", accessToken)
 	}
-	if refreshToken != "" {
-		os.Setenv("CV_REFRESH_TOKEN", refreshToken)
-	}
-}
-
-func fallbackBootstrapOnRenewFailure() error {
-	bootstrapToken := normalizeAuthToken(os.Getenv("CV_BOOTSTRAP_TOKEN"))
-	if bootstrapToken == "" {
-		return fmt.Errorf("bootstrap token is empty")
-	}
-	if err := CreateAccessTokenWithBootstrapToken(bootstrapToken); err != nil {
-		return fmt.Errorf("bootstrap fallback failed: %w", err)
-	}
-	return nil
 }
 
 // CreateAccessTokenWithBootstrapToken creates a new access token pair from a bootstrap token.
@@ -118,47 +93,16 @@ func CreateAccessTokenWithBootstrapToken(bootstrapToken string) error {
 		}
 	}
 
-	if resp.TokenInfo.AccessToken == "" || resp.TokenInfo.RefreshToken == "" {
-		return fmt.Errorf("create access token returned empty access or refresh token")
+	if resp.TokenInfo.AccessToken == "" {
+		return fmt.Errorf("create access token returned empty access token")
 	}
 
-	setRuntimeTokens(resp.TokenInfo.AccessToken, resp.TokenInfo.RefreshToken)
+	setRuntimeTokens(resp.TokenInfo.AccessToken)
 	return nil
 }
 
-// TryRenewWithExpiredTokenAndRefresh attempts to renew an expired bootstrap token using a refresh token.
-// This is used on provider startup when bootstrap token creation fails with 401.
-func TryRenewWithExpiredTokenAndRefresh(expiredToken string, refreshToken string) error {
-	expiredToken = normalizeAuthToken(expiredToken)
-	refreshToken = normalizeAuthToken(refreshToken)
-
-	if expiredToken == "" || refreshToken == "" {
-		return fmt.Errorf("both expired token and refresh token are required for renewal")
-	}
-
-	reqBodyObj := AccessTokenRenewReq{AccessToken: expiredToken, RefreshToken: refreshToken}
-	reqBody, _ := json.Marshal(&reqBodyObj)
-
-	url := buildV4TokenURL("/AccessToken/Renew")
-	respBody, err := execHttpRequestErr(url, http.MethodPost, JSON, reqBody, JSON, expiredToken, 0)
-	if err != nil {
-		return fmt.Errorf("renew with token failed: %w", err)
-	}
-
-	var resp AccessTokenRenewResp
-	if jsonErr := json.Unmarshal(respBody, &resp); jsonErr != nil {
-		return fmt.Errorf("renew with token parse failed: %w", jsonErr)
-	}
-	if resp.AccessToken == "" || resp.RefreshToken == "" {
-		return fmt.Errorf("renew with token returned empty access or refresh token")
-	}
-
-	setRuntimeTokens(resp.AccessToken, resp.RefreshToken)
-	return nil
-}
-
-// RenewAccessToken renews the active token pair using POST /V4/AccessToken/Renew.
-// It updates both access and refresh token in process environment after successful renewal.
+// RenewAccessToken renews the active access token by re-creating a new one from the bootstrap token.
+// Refresh-token-based renewal is not supported; renewal always re-runs the bootstrap token exchange.
 func RenewAccessToken(expiredAccessToken string) error {
 	tokenRenewMutex.Lock()
 	defer tokenRenewMutex.Unlock()
@@ -168,43 +112,13 @@ func RenewAccessToken(expiredAccessToken string) error {
 		return nil
 	}
 
-	refreshToken := normalizeAuthToken(os.Getenv("CV_REFRESH_TOKEN"))
-	if refreshToken == "" {
-		if fallbackErr := fallbackBootstrapOnRenewFailure(); fallbackErr == nil {
-			return nil
-		}
-		return fmt.Errorf("refresh token is empty and bootstrap fallback unavailable")
+	bootstrapToken := normalizeAuthToken(os.Getenv("CV_BOOTSTRAP_TOKEN"))
+	if bootstrapToken == "" {
+		return fmt.Errorf("bootstrap token is empty, cannot renew access token")
 	}
-
-	accessToken := normalizeAuthToken(expiredAccessToken)
-	if accessToken == "" {
-		accessToken = currentToken
-	}
-	if accessToken == "" {
-		return fmt.Errorf("access token is empty")
-	}
-
-	reqBodyObj := AccessTokenRenewReq{AccessToken: accessToken, RefreshToken: refreshToken}
-	reqBody, _ := json.Marshal(&reqBodyObj)
-
-	url := buildV4TokenURL("/AccessToken/Renew")
-	respBody, err := execHttpRequestErr(url, http.MethodPost, JSON, reqBody, JSON, accessToken, 0)
-	if err != nil {
-		if fallbackErr := fallbackBootstrapOnRenewFailure(); fallbackErr == nil {
-			return nil
-		}
+	if err := CreateAccessTokenWithBootstrapToken(bootstrapToken); err != nil {
 		return fmt.Errorf("renew access token failed: %w", err)
 	}
-
-	var resp AccessTokenRenewResp
-	if jsonErr := json.Unmarshal(respBody, &resp); jsonErr != nil {
-		return fmt.Errorf("renew access token parse failed: %w", jsonErr)
-	}
-	if resp.AccessToken == "" || resp.RefreshToken == "" {
-		return fmt.Errorf("renew access token returned empty access or refresh token")
-	}
-
-	setRuntimeTokens(resp.AccessToken, resp.RefreshToken)
 	return nil
 }
 

@@ -43,13 +43,7 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Sensitive:   true,
-				Description: "Bootstrap token for initial /V4/AccessToken call. Can be expired if refresh_token is provided.",
-			},
-			"refresh_token": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Sensitive:   true,
-				Description: "Optional recovery refresh token used when api_token bootstrap fails with 401.",
+				Description: "Bootstrap token for initial /V4/AccessToken call. Used to re-create the access token on renewal.",
 			},
 			"logging": {
 				Type:        schema.TypeBool,
@@ -151,7 +145,6 @@ func providerConfigure(data *schema.ResourceData) (i interface{}, err error) {
 	username := data.Get("user_name").(string)
 	password := data.Get("password").(string)
 	api_token := data.Get("api_token").(string)
-	refresh_token := data.Get("refresh_token").(string)
 	logging := data.Get("logging").(bool)
 	ignore_cert := data.Get("ignore_cert").(bool)
 
@@ -171,31 +164,18 @@ func providerConfigure(data *schema.ResourceData) (i interface{}, err error) {
 			if strings.Contains(tokenErr.Error(), "Access token creation not allowed using another access token") {
 				// The supplied api_token is already an access token; use it directly.
 				os.Setenv("AuthToken", api_token)
-				if refresh_token != "" {
-					os.Setenv("CV_REFRESH_TOKEN", refresh_token)
-				}
 			} else {
-				// Bootstrap failed - try refresh-token recovery on 401 when refresh_token is provided.
-				if refresh_token != "" && strings.Contains(tokenErr.Error(), "401") {
-					if renewErr := handler.TryRenewWithExpiredTokenAndRefresh(api_token, refresh_token); renewErr != nil {
-						return nil, renewErr
-					}
-				} else {
-					return nil, tokenErr
-				}
+				return nil, tokenErr
 			}
 		}
 	} else if os.Getenv("CV_TER_TOKEN") != "" {
 		os.Setenv("AuthToken", os.Getenv("CV_TER_TOKEN"))
-		os.Setenv("CV_REFRESH_TOKEN", "")
 		os.Setenv("CV_BOOTSTRAP_TOKEN", "")
 	} else if os.Getenv("CV_TER_PASSWORD") != "" {
 		handler.LoginWithProviderCredentials(username, os.Getenv("CV_TER_PASSWORD"))
-		os.Setenv("CV_REFRESH_TOKEN", "")
 		os.Setenv("CV_BOOTSTRAP_TOKEN", "")
 	} else {
 		handler.LoginWithProviderCredentials(username, password)
-		os.Setenv("CV_REFRESH_TOKEN", "")
 		os.Setenv("CV_BOOTSTRAP_TOKEN", "")
 	}
 

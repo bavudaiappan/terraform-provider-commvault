@@ -19,7 +19,6 @@ provider "commvault" {
 	user_name = "username that is used to call APIs"
 	password = "password in base 64 encoded format"
 	api_token = "access token to be used"
-	refresh_token = "refresh token used to renew api_token"
 
 	ignore_cert = "true/false to ignore certificate warnings for https endpoints"
 }
@@ -66,15 +65,9 @@ data "azurerm_key_vault_secret" "api_token" {
 	key_vault_id = data.azurerm_key_vault.commvault.id
 }
 
-data "azurerm_key_vault_secret" "refresh_token" {
-	name         = "commvault-refresh-token"
-	key_vault_id = data.azurerm_key_vault.commvault.id
-}
-
 provider "commvault" {
 	web_service_url = "https://webconsole.domain.com/webconsole/api"
 	api_token       = data.azurerm_key_vault_secret.api_token.value
-	refresh_token   = data.azurerm_key_vault_secret.refresh_token.value
 
 	ignore_cert = true
 }
@@ -103,17 +96,10 @@ provider "commvault" {
 
 ### Credential Precedence
 
-For each field (`user_name`, `password`, `api_token`, `refresh_token`):
+For each field (`user_name`, `password`, `api_token`):
 
 1. Use inline provider value when non-empty.
 2. If using Key Vault, resolve value with Terraform data sources and pass it directly into the provider field.
-
-### Refresh Token Notes
-
-- `refresh_token` is optional, but recommended when using `api_token`.
-- If `api_token` is expired, provider attempts renewal using `refresh_token`.
-- Store both token values in Key Vault for best operational stability.
-- If renewal fails with "Renew request placed after the permissible time limit", generate a new token pair and update the Key Vault secrets.
 
 ### Required
 
@@ -124,7 +110,6 @@ For each field (`user_name`, `password`, `api_token`, `refresh_token`):
 - `password` (String) Specifies the Password for the user name to authentication to Web Server. Alternatively set CV_TER_PASSWORD environment variable for terraform to pick it.
 - `user_name` (String) Specifies the User name used for authentication to Web Server.
 - `api_token` (String) Specifies the access token for the user. Alternatively set CV_TER_TOKEN environment variable for terraform to pick it.
-- `refresh_token` (String) Specifies refresh token used to renew access token.
 - `ignore_cert` (Bool) true/false to ignore certificate warnings for https endpoints.
 
 
